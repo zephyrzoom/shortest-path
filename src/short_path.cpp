@@ -5,13 +5,14 @@
 #include <vector>
 #include <cctype>
 #include <iostream>
-// #include <stdlib>
+#include <cstdlib>
+#include <cstring>
 
 #include "short_path.h"
 
 int main(int argc, char const *argv[])
 {
-    char topo[][] = {
+    const char *topo[5000] = {
         "0,0,1,1\n",
         "1,0,2,2\n",
         "2,0,3,1\n",
@@ -20,46 +21,49 @@ int main(int argc, char const *argv[])
         "5,2,3,1\n",
         "6,3,2,1\n"
     };
-    std::vector<Node> result = createTree(topo, edgeNum, demand);
+    int edgeNum = 7;
+    const char *demand = "0,1,2|3";
+    std::vector<Node*> result = createTree(topo, edgeNum, demand);
     printPath(result);
     return 0;
 }
 
-std::vector<Node> createTree(char **topo, int edgeNum, char *demand)
+std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *demand)
 {
-    std::vector<Node> result;
+    std::vector<Node*> result;
 
-    std::vector<Arc> sortedTopo = sortByIn(topo);
+    std::vector<Arc> sortedTopo = sortByIn(topo, edgeNum);
 
     std::vector<int> dmd = getDemand(demand);
     int start = dmd[0];
-    std::vector<Arc>::iterator arcs = findArcs(start, sortedTopo);
+    std::vector<Arc> arcs = findArcs(start, sortedTopo);
 
-    Node root(NULL, NULL, NULL, arcs->in, NULL);
-    Node nextRoot = root;
+    Node node(NULL, NULL, NULL, arcs[0].in, NULL);
+    Node *root = &node;
+    Node *nextRoot = root;
 
     // current layer has node.
     while (nextRoot != NULL)
     {
         root = nextRoot;
         nextRoot = NULL;
-        Node lastInsert = NULL;
+        Node *lastInsert = NULL;
 
 
         while (root != NULL)
         {
-            std::vector<Arc>::iterator arcs = findArcs(root.num);
-            if (arcs != NULL)
+            std::vector<Arc> arcs = findArcs(root->num, sortedTopo);
+            if (!arcs.empty())
             {
-                for (; arcs->out == (arcs+1)->out; ++arcs)
+                for (std::vector<Arc>::iterator arc = arcs.begin(); arc != arcs.end(); ++arc)
                 {
                     if (nextRoot == NULL)
                     {
-                        if (!nodeExist(arcs->out, root))
+                        if (!nodeExist(arc->out, root))
                         {
-                            nextRoot = insertFirstNode(root, arcs);
+                            nextRoot = insertFirstNode(root, arc);
                             lastInsert = nextRoot;
-                            if (nextRoot.num == dmd[1])
+                            if (nextRoot->num == dmd[1])
                             {
                                 result.push_back(lastInsert);
                                 nextRoot = NULL;
@@ -68,19 +72,22 @@ std::vector<Node> createTree(char **topo, int edgeNum, char *demand)
                     }
                     else
                     {
-                        if (!nodeExist(arcs->out, root))
+                        if (!nodeExist(arc->out, root))
                         {
-                            Node beforeLastInsert = lastInsert;
-                            lastInsert = insertNode(root, lastInsert, arcs);
-                            if (lastInsert.num == dmd[1])
+                            Node *beforeLastInsert = lastInsert;
+                            // new node and old node point the same address!!!
+                            // why???
+                            lastInsert = insertNode(root, lastInsert, arc);
+                            if (lastInsert->num == dmd[1])
                             {
                                 result.push_back(lastInsert);
-                                beforeLastInsert.rChild = NULL;
+                                beforeLastInsert->rChild = NULL;
                             }
                         }
                     }
                 }
             }
+            root = root->rChild;
         }
     }
 
@@ -88,7 +95,7 @@ std::vector<Node> createTree(char **topo, int edgeNum, char *demand)
 }
 
 
-std::vector<Arc> sortByIn(char **topo, int edgeNum)
+std::vector<Arc> sortByIn(const char **topo, const int edgeNum)
 {
     std::vector<Arc> arcs = restore2Int(topo, edgeNum);
 
@@ -106,19 +113,20 @@ std::vector<Arc> sortByIn(char **topo, int edgeNum)
 }
 
 
-std::vector<Arc> restore2Int(char **topo, int edgeNum)
+std::vector<Arc> restore2Int(const char **topo, const int edgeNum)
 {
     std::vector<Arc> arcs;
-    for (size_t i = 0, j = 0; i < edgeNum; ++i)
+    for (size_t i = 0; i < edgeNum; ++i)
     {
         int tmpArc[4];
         int used = 0;
         int tmp = 0;
+        size_t j = 0;
         while (topo[i][j] != '\n')
         {
             if (isdigit(topo[i][j]))
             {
-                tmp = tmp * 10 + atoi(topo[i][j]);
+                tmp = tmp * 10 + (topo[i][j] - '0');
             }
             else
             {
@@ -127,12 +135,14 @@ std::vector<Arc> restore2Int(char **topo, int edgeNum)
             }
             ++j;
         }
+        tmpArc[used] = tmp;
         Arc arc(tmpArc[0], tmpArc[1], tmpArc[2], tmpArc[3]);
         arcs.push_back(arc);
     }
+    return arcs;
 }
 
-std::vector<int> getDemand(char *demand)
+std::vector<int> getDemand(const char *demand)
 {
     std::vector<int> dmd;
     int tmp = 0;
@@ -140,7 +150,7 @@ std::vector<int> getDemand(char *demand)
     {
         if (isdigit(demand[i]))
         {
-            tmp = tmp * 10 + atoi(demand[i]);
+            tmp = tmp * 10 + (demand[i] - '0');
         }
         else
         {
@@ -148,56 +158,59 @@ std::vector<int> getDemand(char *demand)
             tmp = 0;
         }
     }
+    dmd.push_back(tmp);
+    return dmd;
 }
 
-std::vector<Arc>::iterator findArcs(int inNode, std::vector<Arc> arcs)
+std::vector<Arc> findArcs(int inNode, std::vector<Arc> arcs)
 {
+    std::vector<Arc> found;
     for (std::vector<Arc>::iterator i = arcs.begin(); i != arcs.end(); ++i)
     {
         if (i->in == inNode)
         {
-            return i;
+            found.push_back(*i);
         }
     }
-    return NULL;
+    return found;
 }
 
-bool nodeExist(int out, Node root)
+bool nodeExist(int out, Node *root)
 {
     while (root != NULL)
     {
-        if (out == root.num)
+        if (out == root->num)
         {
             return true;
         }
-        root = *(root.parent);
+        root = root->parent;
     }
     return false;
 }
 
-Node &insertFirstNode(Node &root, std::vector<Arc>::iterator arc)
+Node *insertFirstNode(Node *root, std::vector<Arc>::iterator arc)
 {
-    Node node(NULL, NULL, &root, arc->out, arc->num);
-    root.lChild = &node;
-    return node;
+    Node node(NULL, NULL, root, arc->out, arc->num);
+    root->lChild = &node;
+    return &node;
 }
 
 
-Node &insertNode(Node &root, Node &lastInsert, std::vector<Arc>::iterator arc)
+Node *insertNode(Node *root, Node *lastInsert, std::vector<Arc>::iterator arc)
 {
-    Node node(&lastInsert, NULL, &root, arc->out, arc->num);
-    lastInsert.rChild = &node;
-    return node;
+    Node node(NULL, NULL, root, arc->out, arc->num);
+    lastInsert->rChild = &node;
+    return &node;
 }
 
-void printPath(std::vector<Node> result)
+void printPath(std::vector<Node*> result)
 {
-    for (std::vector<Node>::iterator i = result.begin(); i != result.end(); ++i)
+    for (std::vector<Node*>::iterator i = result.begin(); i != result.end(); ++i)
     {
-        while (i != NULL)
+        while (*i != NULL)
         {
-            std::cout << i.arc << " ";
-            i = *(i.parent);
+            std::cout << (*i)->arc << " ";
+            *i = (*i)->parent;
         }
         std::cout << std::endl;
     }
