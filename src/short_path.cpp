@@ -13,16 +13,62 @@
 int main(int argc, char const *argv[])
 {
     const char *topo[5000] = {
-        "0,0,1,1\n",
-        "1,0,2,2\n",
-        "2,0,3,1\n",
-        "3,2,1,3\n",
-        "4,3,1,1\n",
-        "5,2,3,1\n",
-        "6,3,2,1\n"
+        // "0,0,1,1\n",
+        // "1,0,2,2\n",
+        // "2,0,3,1\n",
+        // "3,2,1,3\n",
+        // "4,3,1,1\n",
+        // "5,2,3,1\n",
+        // "6,3,2,1\n"
+        
+        "0,0,13,15\n",
+        "1,0,8,17\n",
+        "2,0,19,1\n",
+        "3,0,4,8\n",
+        "4,1,0,4\n",
+        "5,2,9,19\n",
+        "6,2,15,8\n",
+        "7,3,0,14\n",
+        "8,3,11,12\n",
+        "9,4,1,15\n",
+        "10,4,5,17\n",
+        "11,5,8,18\n",
+        "12,5,9,14\n",
+        "13,5,6,2\n",
+        "14,6,17,4\n",
+        "15,7,13,1\n",
+        "16,7,16,19\n",
+        "17,8,6,1\n",
+        "18,8,12,17\n",
+        "19,9,14,11\n",
+        "20,10,12,1\n",
+        "21,11,7,12\n",
+        "22,11,4,7\n",
+        "23,12,14,5\n",
+        "24,13,17,12\n",
+        "25,13,4,2\n",
+        "26,14,19,9\n",
+        "27,15,10,14\n",
+        "28,15,18,2\n",
+        "29,16,8,1\n",
+        "30,17,9,14\n",
+        "31,17,19,3\n",
+        "32,17,18,10\n",
+        "33,18,15,8\n",
+        "34,18,3,8\n",
+        "35,19,18,12\n",
+        "36,2,3,20\n",
+        "37,3,5,20\n",
+        "38,5,7,20\n",
+        "39,7,11,20\n",
+        "40,11,13,20\n",
+        "41,17,11,20\n",
+        "42,11,19,20\n",
+        "43,17,5,20\n",
+        "44,5,19,20\n"
     };
-    int edgeNum = 7;
-    const char *demand = "0,1,2|3";
+    int edgeNum = 45;
+    const char *demand = "2,19,3|5|7|11|13|17";
     std::vector<Node*> result = createTree(topo, edgeNum, demand);
     printPath(result);
     return 0;
@@ -38,8 +84,8 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
     int start = dmd[0];
     std::vector<Arc> arcs = findArcs(start, sortedTopo);
 
-    Node node(NULL, NULL, NULL, arcs[0].in, NULL);
-    Node *root = &node;
+    Node *root = new Node(NULL, NULL, NULL, arcs[0].in, 0, 0);
+    root->exist[arcs[0].in/32] |= 1 << arcs[0].in;
     Node *nextRoot = root;
 
     // current layer has node.
@@ -82,6 +128,7 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
                             {
                                 result.push_back(lastInsert);
                                 beforeLastInsert->rChild = NULL;
+                                lastInsert = beforeLastInsert;
                             }
                         }
                     }
@@ -190,28 +237,41 @@ bool nodeExist(int out, Node *root)
 
 Node *insertFirstNode(Node *root, std::vector<Arc>::iterator arc)
 {
-    Node node(NULL, NULL, root, arc->out, arc->num);
-    root->lChild = &node;
-    return &node;
+    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight);
+    
+    root->lChild = node;
+    return node;
 }
 
 
 Node *insertNode(Node *root, Node *lastInsert, std::vector<Arc>::iterator arc)
 {
-    Node node(NULL, NULL, root, arc->out, arc->num);
-    lastInsert->rChild = &node;
-    return &node;
+    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight);
+    lastInsert->rChild = node;
+    return node;
 }
 
 void printPath(std::vector<Node*> result)
 {
+    Node *shortest = new Node(NULL, NULL, NULL, 0, 0, 10000000);
     for (std::vector<Node*>::iterator i = result.begin(); i != result.end(); ++i)
     {
+        if ((*i)->weight < shortest->weight)
+        {
+            shortest = *i;
+        }
         while (*i != NULL)
         {
-            std::cout << (*i)->arc << " ";
+            std::cout << (*i)->num << " ";
             *i = (*i)->parent;
         }
         std::cout << std::endl;
     }
+    std::cout << "=================================\n";
+    while (shortest != NULL)
+    {
+        std::cout << shortest->num << " ";
+        shortest = shortest->parent;
+    }
+    std::cout << std::endl;
 }

@@ -13,12 +13,14 @@ public:
     Node *parent;
     int num;
     int arc;
+    int weight;
     unsigned int exist[20];
 
     Node() {}
     Node(Node *lChild_, Node *rChild_, Node *parent_,
-        int num_, int arc_):
-        lChild(lChild_), rChild(rChild_), parent(parent_), num(num_), arc(arc_) {}
+        int num_, int arc_, int weight_):
+        lChild(lChild_), rChild(rChild_), parent(parent_),
+        num(num_), arc(arc_), weight(weight_) {}
 };
 
 class Arc
