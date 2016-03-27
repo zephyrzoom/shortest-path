@@ -14,13 +14,18 @@ public:
     int num;
     int arc;
     int weight;
-    unsigned int exist[20];
+    std::vector<unsigned int> exist;
 
     Node() {}
     Node(Node *lChild_, Node *rChild_, Node *parent_,
         int num_, int arc_, int weight_):
         lChild(lChild_), rChild(rChild_), parent(parent_),
         num(num_), arc(arc_), weight(weight_) {}
+    Node(Node *lChild_, Node *rChild_, Node *parent_,
+        int num_, int arc_, int weight_, std::vector<unsigned int> exist_):
+        lChild(lChild_), rChild(rChild_), parent(parent_),
+        num(num_), arc(arc_), weight(weight_), exist(exist_) {}
+    void addExistNode(int num);
 };
 
 class Arc
@@ -44,4 +49,4 @@ Node *insertNode(Node *root, Node *lastInsert, std::vector<Arc>::iterator arc);
 Node *insertFirstNode(Node *root, std::vector<Arc>::iterator arc);
 std::vector<Arc> restore2Int(const char **topo, const int edgeNum);
 bool nodeExist(int out, Node *root);
-void printPath(std::vector<Node*> result);
+void printPath(std::vector<Node*> result, std::vector<int> demand);

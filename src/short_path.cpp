@@ -70,7 +70,8 @@ int main(int argc, char const *argv[])
     int edgeNum = 45;
     const char *demand = "2,19,3|5|7|11|13|17";
     std::vector<Node*> result = createTree(topo, edgeNum, demand);
-    printPath(result);
+    std::vector<int> dmd = getDemand(demand);
+    printPath(result, dmd);
     return 0;
 }
 
@@ -85,7 +86,7 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
     std::vector<Arc> arcs = findArcs(start, sortedTopo);
 
     Node *root = new Node(NULL, NULL, NULL, arcs[0].in, 0, 0);
-    root->exist[arcs[0].in/32] |= 1 << arcs[0].in;
+    root->addExistNode(arcs[0].in);
     Node *nextRoot = root;
 
     // current layer has node.
@@ -137,7 +138,6 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
             root = root->rChild;
         }
     }
-
     return result;
 }
 
@@ -224,21 +224,27 @@ std::vector<Arc> findArcs(int inNode, std::vector<Arc> arcs)
 
 bool nodeExist(int out, Node *root)
 {
-    while (root != NULL)
+    if (root->exist.size() > out/32)
     {
-        if (out == root->num)
+        if ((1 << (out%32) & root->exist[out/32]) > 0)
         {
             return true;
         }
-        root = root->parent;
+        else
+        {
+            return false;
+        }
     }
-    return false;
+    else
+    {
+        return false;
+    }
 }
 
 Node *insertFirstNode(Node *root, std::vector<Arc>::iterator arc)
 {
-    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight);
-    
+    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight, root->exist);
+    node->addExistNode(arc->out);
     root->lChild = node;
     return node;
 }
@@ -246,26 +252,40 @@ Node *insertFirstNode(Node *root, std::vector<Arc>::iterator arc)
 
 Node *insertNode(Node *root, Node *lastInsert, std::vector<Arc>::iterator arc)
 {
-    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight);
+    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight, root->exist);
+    node->addExistNode(arc->out);
     lastInsert->rChild = node;
     return node;
 }
 
-void printPath(std::vector<Node*> result)
+void printPath(std::vector<Node*> result, std::vector<int> demand)
 {
     Node *shortest = new Node(NULL, NULL, NULL, 0, 0, 10000000);
+
     for (std::vector<Node*>::iterator i = result.begin(); i != result.end(); ++i)
     {
-        if ((*i)->weight < shortest->weight)
+        bool satisfy = true;
+        for (std::vector<int>::iterator j = demand.begin()+2; j != demand.end(); ++j)
         {
-            shortest = *i;
+            if (!nodeExist(*j, *i))
+            {
+                satisfy = false;
+                break;
+            }
         }
-        while (*i != NULL)
+        if (satisfy)
         {
-            std::cout << (*i)->num << " ";
-            *i = (*i)->parent;
+            if ((*i)->weight < shortest->weight)
+            {
+                shortest = (*i);
+            }
+            while (*i != NULL)
+            {
+                std::cout << (*i)->num << " ";
+                *i = (*i)->parent;
+            }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
     }
     std::cout << "=================================\n";
     while (shortest != NULL)
@@ -274,4 +294,18 @@ void printPath(std::vector<Node*> result)
         shortest = shortest->parent;
     }
     std::cout << std::endl;
+}
+
+void Node::addExistNode(int num)
+{
+    size_t needed = num/32 + 1 - this->exist.size();
+    if (needed > 0)
+    {
+        for (size_t i = 0; i < needed; ++i)
+        {
+            unsigned int tmp = 0;
+            this->exist.push_back(tmp);
+        }
+    }
+    this->exist[num/32] |= (1 << num);
 }
