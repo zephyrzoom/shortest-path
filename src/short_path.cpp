@@ -14,12 +14,12 @@ int main(int argc, char const *argv[])
 {
     const char *topo[5000] = {
         // "0,0,1,1\n",
-        // "1,0,2,2\n",
+        // "1,0,2000,2\n",
         // "2,0,3,1\n",
-        // "3,2,1,3\n",
+        // "3,2000,1,3\n",
         // "4,3,1,1\n",
-        // "5,2,3,1\n",
-        // "6,3,2,1\n"
+        // "5,2000,3,1\n",
+        // "6,3,2000,1\n"
         
         "0,0,13,15\n",
         "1,0,8,17\n",
@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
         "8,3,11,12\n",
         "9,4,1,15\n",
         "10,4,5,17\n",
-        "11,5,8,18\n",
+        "11,5,8,180\n",
         "12,5,9,14\n",
         "13,5,6,2\n",
         "14,6,17,4\n",
@@ -49,14 +49,14 @@ int main(int argc, char const *argv[])
         "25,13,4,2\n",
         "26,14,19,9\n",
         "27,15,10,14\n",
-        "28,15,18,2\n",
+        "28,15,180,2\n",
         "29,16,8,1\n",
         "30,17,9,14\n",
         "31,17,19,3\n",
-        "32,17,18,10\n",
-        "33,18,15,8\n",
-        "34,18,3,8\n",
-        "35,19,18,12\n",
+        "32,17,180,10\n",
+        "33,180,15,8\n",
+        "34,180,3,8\n",
+        "35,19,180,12\n",
         "36,2,3,20\n",
         "37,3,5,20\n",
         "38,5,7,20\n",
@@ -67,7 +67,9 @@ int main(int argc, char const *argv[])
         "43,17,5,20\n",
         "44,5,19,20\n"
     };
+    //int edgeNum = 7;
     int edgeNum = 45;
+    //const char *demand = "0,1,2000|3";
     const char *demand = "2,19,3|5|7|11|13|17";
     std::vector<Node*> result = createTree(topo, edgeNum, demand);
     std::vector<int> dmd = getDemand(demand);
@@ -298,7 +300,7 @@ void printPath(std::vector<Node*> result, std::vector<int> demand)
 
 void Node::addExistNode(int num)
 {
-    size_t needed = num/32 + 1 - this->exist.size();
+    int needed = num/32 + 1 - this->exist.size();
     if (needed > 0)
     {
         for (size_t i = 0; i < needed; ++i)
