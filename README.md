@@ -1,2 +1,2 @@
 # shortest-path
-shortest path between two node through the spicified nodes.
+shortest path between two node through the specified nodes.
