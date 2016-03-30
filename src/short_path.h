@@ -8,12 +8,17 @@
 class Node
 {
 public:
+    // the first node of next layer.
     Node *lChild;
+    // the next node of current layer.
     Node *rChild;
     Node *parent;
+    // node number
     int num;
+    // arc number
     int arc;
     int weight;
+    // store the exist node by bit.
     std::vector<unsigned int> exist;
 
     Node() {}

@@ -71,12 +71,25 @@ int main(int argc, char const *argv[])
     int edgeNum = 45;
     //const char *demand = "0,1,2000|3";
     const char *demand = "2,19,3|5|7|11|13|17";
+
+
     std::vector<Node*> result = createTree(topo, edgeNum, demand);
     std::vector<int> dmd = getDemand(demand);
     printPath(result, dmd);
     return 0;
 }
 
+/*
+create a tree like:
+*
+|
+*--*--*
+|
+*--*--*--*--*--*
+|
+*--*
+...
+ */
 std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *demand)
 {
     std::vector<Node*> result;
@@ -87,6 +100,7 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
     int start = dmd[0];
     std::vector<Arc> arcs = findArcs(start, sortedTopo);
 
+    // create root from the start.
     Node *root = new Node(NULL, NULL, NULL, arcs[0].in, 0, 0);
     root->addExistNode(arcs[0].in);
     Node *nextRoot = root;
@@ -94,27 +108,41 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
     // current layer has node.
     while (nextRoot != NULL)
     {
+        // when go to next layer, change the root to
+        // the first node of current layer.
         root = nextRoot;
         nextRoot = NULL;
         Node *lastInsert = NULL;
 
 
+        // current layer still has node.
         while (root != NULL)
         {
             std::vector<Arc> arcs = findArcs(root->num, sortedTopo);
             if (!arcs.empty())
             {
+                // insert nodes connected with the root.
                 for (std::vector<Arc>::iterator arc = arcs.begin(); arc != arcs.end(); ++arc)
                 {
+                    // the next layer has no node
+                    // this segment for insert 
+                    // the first node of next layer.
                     if (nextRoot == NULL)
                     {
+                        // in this path the node has not
+                        // existed then insert it.
                         if (!nodeExist(arc->out, root))
                         {
                             nextRoot = insertFirstNode(root, arc);
                             lastInsert = nextRoot;
+                            // the inserted node equals
+                            // the end node of demand
+                            // this path ended.
                             if (nextRoot->num == dmd[1])
                             {
                                 result.push_back(lastInsert);
+                                // the first node of next layer
+                                // is still empty.
                                 nextRoot = NULL;
                             }
                         }
@@ -124,12 +152,13 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
                         if (!nodeExist(arc->out, root))
                         {
                             Node *beforeLastInsert = lastInsert;
-                            // new node and old node point the same address!!!
-                            // why???
                             lastInsert = insertNode(root, lastInsert, arc);
                             if (lastInsert->num == dmd[1])
                             {
                                 result.push_back(lastInsert);
+                                // this path is over.
+                                // the before node should not link 
+                                // the inserted node.
                                 beforeLastInsert->rChild = NULL;
                                 lastInsert = beforeLastInsert;
                             }
@@ -137,13 +166,17 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
                     }
                 }
             }
+            // change the root to the next node of this layer.
             root = root->rChild;
         }
     }
     return result;
 }
 
-
+/*
+sort the topo list by in-degree.
+use the insert sort algorithm.
+ */
 std::vector<Arc> sortByIn(const char **topo, const int edgeNum)
 {
     std::vector<Arc> arcs = restore2Int(topo, edgeNum);
@@ -161,7 +194,9 @@ std::vector<Arc> sortByIn(const char **topo, const int edgeNum)
     return arcs;
 }
 
-
+/*
+change the topo list from char to int.
+ */
 std::vector<Arc> restore2Int(const char **topo, const int edgeNum)
 {
     std::vector<Arc> arcs;
@@ -191,6 +226,9 @@ std::vector<Arc> restore2Int(const char **topo, const int edgeNum)
     return arcs;
 }
 
+/*
+change the demand from char to int.
+ */
 std::vector<int> getDemand(const char *demand)
 {
     std::vector<int> dmd;
@@ -211,6 +249,9 @@ std::vector<int> getDemand(const char *demand)
     return dmd;
 }
 
+/*
+find corresponding arcs by the in-degree node number.
+ */
 std::vector<Arc> findArcs(int inNode, std::vector<Arc> arcs)
 {
     std::vector<Arc> found;
@@ -224,6 +265,10 @@ std::vector<Arc> findArcs(int inNode, std::vector<Arc> arcs)
     return found;
 }
 
+/*
+test the node exist or not in the path
+by compare the bit position.
+ */
 bool nodeExist(int out, Node *root)
 {
     if (root->exist.size() > out/32)
@@ -298,6 +343,10 @@ void printPath(std::vector<Node*> result, std::vector<int> demand)
     std::cout << std::endl;
 }
 
+/*
+if the node exist, add the node info
+to the bit position.
+ */
 void Node::addExistNode(int num)
 {
     int needed = num/32 + 1 - this->exist.size();
