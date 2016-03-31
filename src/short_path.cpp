@@ -14,12 +14,12 @@ int main(int argc, char const *argv[])
 {
     const char *topo[5000] = {
         // "0,0,1,1\n",
-        // "1,0,2000,2\n",
         // "2,0,3,1\n",
-        // "3,2000,1,3\n",
+        // "1,0,2,2\n",
+        // "3,2,1,3\n",
         // "4,3,1,1\n",
-        // "5,2000,3,1\n",
-        // "6,3,2000,1\n"
+        // "5,2,3,1\n",
+        // "6,3,2,1\n"
         
         "0,0,13,15\n",
         "1,0,8,17\n",
@@ -69,30 +69,20 @@ int main(int argc, char const *argv[])
     };
     //int edgeNum = 7;
     int edgeNum = 45;
-    //const char *demand = "0,1,2000|3";
+    //const char *demand = "0,1,2|3";
     const char *demand = "2,19,3|5|7|11|13|17";
 
 
-    std::vector<Node*> result = createTree(topo, edgeNum, demand);
-    std::vector<int> dmd = getDemand(demand);
-    printPath(result, dmd);
+    std::vector<int> result = findPath(topo, edgeNum, demand);
+    printPath(result);
+
     return 0;
 }
 
-/*
-create a tree like:
-*
-|
-*--*--*
-|
-*--*--*--*--*--*
-|
-*--*
-...
- */
-std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *demand)
+std::vector<int> findPath(const char **topo, const int edgeNum, const char *demand)
 {
-    std::vector<Node*> result;
+    std::vector<int> path;
+    int pathWeight = 0xFFFF;
 
     std::vector<Arc> sortedTopo = sortByIn(topo, edgeNum);
 
@@ -101,76 +91,39 @@ std::vector<Node*> createTree(const char **topo, const int edgeNum, const char *
     std::vector<Arc> arcs = findArcs(start, sortedTopo);
 
     // create root from the start.
-    Node *root = new Node(NULL, NULL, NULL, arcs[0].in, 0, 0);
+    Node *root = new Node(NULL, arcs[0].in, 0, arcs);
     root->addExistNode(arcs[0].in);
-    Node *nextRoot = root;
 
-    // current layer has node.
-    while (nextRoot != NULL)
+    while (root != NULL)
     {
-        // when go to next layer, change the root to
-        // the first node of current layer.
-        root = nextRoot;
-        nextRoot = NULL;
-        Node *lastInsert = NULL;
-
-
-        // current layer still has node.
-        while (root != NULL)
+        while (root->notVisit.size() > 0)
         {
-            std::vector<Arc> arcs = findArcs(root->num, sortedTopo);
-            if (!arcs.empty())
+            std::vector<Arc>::iterator arc = root->notVisit.begin();
+            if (!nodeAlreadyExist(arc->out, root))
             {
-                // insert nodes connected with the root.
-                for (std::vector<Arc>::iterator arc = arcs.begin(); arc != arcs.end(); ++arc)
+                Node *node = insertNode(root, arc, sortedTopo);
+                if (node->num == dmd[1])
                 {
-                    // the next layer has no node
-                    // this segment for insert 
-                    // the first node of next layer.
-                    if (nextRoot == NULL)
-                    {
-                        // in this path the node has not
-                        // existed then insert it.
-                        if (!nodeExist(arc->out, root))
-                        {
-                            nextRoot = insertFirstNode(root, arc);
-                            lastInsert = nextRoot;
-                            // the inserted node equals
-                            // the end node of demand
-                            // this path ended.
-                            if (nextRoot->num == dmd[1])
-                            {
-                                result.push_back(lastInsert);
-                                // the first node of next layer
-                                // is still empty.
-                                nextRoot = NULL;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (!nodeExist(arc->out, root))
-                        {
-                            Node *beforeLastInsert = lastInsert;
-                            lastInsert = insertNode(root, lastInsert, arc);
-                            if (lastInsert->num == dmd[1])
-                            {
-                                result.push_back(lastInsert);
-                                // this path is over.
-                                // the before node should not link 
-                                // the inserted node.
-                                beforeLastInsert->rChild = NULL;
-                                lastInsert = beforeLastInsert;
-                            }
-                        }
-                    }
+                    calTheShortestPath(path, node, pathWeight, dmd);
+                    delete node;
+                    root->notVisit.erase(arc);
+                }
+                else
+                {
+                    root->notVisit.erase(arc);
+                    root = node;
                 }
             }
-            // change the root to the next node of this layer.
-            root = root->rChild;
+            else
+            {
+                root->notVisit.erase(arc);
+            }
         }
+        Node *toBeDel = root;
+        root = root->parent;
+        delete toBeDel;
     }
-    return result;
+    return path;
 }
 
 /*
@@ -269,7 +222,7 @@ std::vector<Arc> findArcs(int inNode, std::vector<Arc> arcs)
 test the node exist or not in the path
 by compare the bit position.
  */
-bool nodeExist(int out, Node *root)
+bool nodeAlreadyExist(int out, Node *root)
 {
     if (root->exist.size() > out/32)
     {
@@ -288,63 +241,27 @@ bool nodeExist(int out, Node *root)
     }
 }
 
-Node *insertFirstNode(Node *root, std::vector<Arc>::iterator arc)
+
+Node *insertNode(Node *root, std::vector<Arc>::iterator &arc, std::vector<Arc> &arcs)
 {
-    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight, root->exist);
+    Node *node = new Node(root, arc->out, arc->num,
+        arc->weight + root->weight, root->exist,
+        findArcs(arc->out, arcs));
     node->addExistNode(arc->out);
-    root->lChild = node;
     return node;
 }
 
-
-Node *insertNode(Node *root, Node *lastInsert, std::vector<Arc>::iterator arc)
+void printPath(std::vector<int> result)
 {
-    Node *node = new Node(NULL, NULL, root, arc->out, arc->num, arc->weight + root->weight, root->exist);
-    node->addExistNode(arc->out);
-    lastInsert->rChild = node;
-    return node;
-}
-
-void printPath(std::vector<Node*> result, std::vector<int> demand)
-{
-    Node *shortest = new Node(NULL, NULL, NULL, 0, 0, 10000000);
-
-    for (std::vector<Node*>::iterator i = result.begin(); i != result.end(); ++i)
+    for (std::vector<int>::iterator i = result.begin(); i != result.end(); ++i)
     {
-        bool satisfy = true;
-        for (std::vector<int>::iterator j = demand.begin()+2; j != demand.end(); ++j)
-        {
-            if (!nodeExist(*j, *i))
-            {
-                satisfy = false;
-                break;
-            }
-        }
-        if (satisfy)
-        {
-            if ((*i)->weight < shortest->weight)
-            {
-                shortest = (*i);
-            }
-            while (*i != NULL)
-            {
-                std::cout << (*i)->num << " ";
-                *i = (*i)->parent;
-            }
-            std::cout << std::endl;
-        }
-    }
-    std::cout << "=================================\n";
-    while (shortest != NULL)
-    {
-        std::cout << shortest->num << " ";
-        shortest = shortest->parent;
+        std::cout << *i << " ";
     }
     std::cout << std::endl;
 }
 
 /*
-if the node exist, add the node info
+add the node info
 to the bit position.
  */
 void Node::addExistNode(int num)
@@ -359,4 +276,49 @@ void Node::addExistNode(int num)
         }
     }
     this->exist[num/32] |= (1 << num);
+}
+
+void calTheShortestPath(std::vector<int> &path, Node *node,
+    int &pathWeight, std::vector<int> &demand)
+{
+
+    for (std::vector<int>::iterator j = demand.begin()+2; j != demand.end(); ++j)
+    {
+        if (!nodeAlreadyExist(*j, node))
+        {
+            return;
+        }
+    }
+    // print paths.
+    // temporary.
+    Node *tmp = node;
+    while (tmp != NULL)
+    {
+        std::cout << tmp->num << " ";
+        tmp = tmp->parent;
+    }
+    std::cout << std::endl;
+
+    if (path.empty())
+    {
+        pathWeight = node->weight;
+        while (node->parent != NULL)
+        {
+            path.insert(path.begin(), node->arc);
+            node = node->parent;
+        }
+    }
+    else
+    {
+        if (node->weight < pathWeight)
+        {
+            pathWeight = node->weight;
+            path.clear();
+            while (node->parent != NULL)
+            {
+                path.insert(path.begin(), node->arc);
+                node = node->parent;
+            }
+        }
+    }
 }
